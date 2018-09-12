@@ -1,0 +1,224 @@
+
+<!-- saved from url=(0077)ftp://waws-prod-dm1-027.ftp.azurewebsites.windows.net/site/wwwroot/index.html -->
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=windows-1252"></head><body>
+<html>
+    <head>
+        <title>Stochastic Oscillator</title>
+    </head>
+
+    <style>
+    h1 {
+        color: blue;
+        font-family: verdana;
+        font-size: 300%;
+        text-align: center;
+    }
+    h2 {
+        color: red;
+        font-family: courier;
+        font-size: 160%;
+    }
+    </style>
+
+    <body>
+        <h1> Stochastic Oscillator </h1>
+        <h2> search the stock market ticker you would like to see </h2>
+        <form id="form1">
+                  Stock Ticker: <input name ="symbol" type="text" size ="20">
+        </form>
+
+       <button id="calculate" type="button" onclick="outputname()">Calculate</button><br>
+        <script src="https://code.jquery.com/jquery-1.12.4.min.js"  ></script>
+        <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+         <!-- <script src="https://d3js.org/d3.v5.min.js"></script> -->
+        <script type="text/javascript">
+            google.charts.load('current', { 'packages': ['corechart'] });
+            google.charts.setOnLoadCallback(outputname);
+
+            function outputname(){
+            	var y,ticker;
+                y = document.getElementById("form1");
+                ticker = y.elements["symbol"].value;			
+                
+                $(document).ready(function(){
+                    $.ajax({
+                        type: "GET",
+                        url: "https://www.alphavantage.co/query?function=TIME_SERIES_WEEKLY_ADJUSTED&symbol="+ ticker+ "&apikey=4142TO2LC4HNX7IJ",
+                        dataType: "json",
+                        success: function(data) { processData(data); }
+                        });
+                    });
+            }
+
+
+                function processData(data){
+                        var stockJSON = data;
+                        
+                        var lastprice;
+                        for(key in stockJSON["Weekly Adjusted Time Series"]){
+                            lastprice = stockJSON["Weekly Adjusted Time Series"][key]["1. open"];
+                            break;
+                        }
+                        var low1;
+                        for(key in stockJSON["Weekly Adjusted Time Series"]){
+                            low1 = stockJSON["Weekly Adjusted Time Series"][key]["3. low"];
+                            break;
+                        }
+                        var low2;
+                        var count = 0;
+                        for(key in stockJSON["Weekly Adjusted Time Series"]){
+                            low2 = stockJSON["Weekly Adjusted Time Series"][key]["3. low"];
+                            ++count;
+                            if(count == 2){
+                                break;
+                            }
+                        }
+
+                        var finalLow = checkLow(low1,low2);
+
+                        var high1;
+                        for(key in stockJSON["Weekly Adjusted Time Series"]){
+                            high1 = stockJSON["Weekly Adjusted Time Series"][key]["2. high"];
+                            break;
+                        }
+                        var high2;
+                        var count1 = 0;
+                        for(key in stockJSON["Weekly Adjusted Time Series"]){
+                            high2 = stockJSON["Weekly Adjusted Time Series"][key]["2. high"];
+                            ++count1;
+                            if(count1 == 2){
+                                break;
+                            }
+                        }
+
+                        var finalHigh = checkHigh(high1,high2);
+                       
+
+
+                        var formulaVariables = []
+                        formulaVariables.push(lastprice);
+                        formulaVariables.push(finalLow);
+                        formulaVariables.push(finalHigh);
+                        
+                        var finalValue = CalcBearBull(formulaVariables);
+
+                        var Chartdata = [];
+
+                        Chartdata = makeDataTable(finalValue);
+
+                        var googleDataTable = google.visualization.arrayToDataTable(Chartdata);
+                        drawChart(googleDataTable);
+                }
+
+                function makeDataTable(finalValue){
+                        var lines = [];
+                        var col = [];
+                        col.push('Market Rate');
+                        col.push('Market Rate');
+                        col.push({role:"style"});
+                        lines.push(col);
+
+                        var BearValue = giveBear(finalValue);
+                        var BullValue = giveBull(finalValue);
+
+                        var row1 = [];
+                        row1.push('Bearish');
+                        row1.push(BearValue);
+                        row1.push('#ff0000');
+
+                        lines.push(row1);
+
+                        var row2 = [];
+                        row2.push('Bullish');
+                        row2.push(BullValue);
+                        row2.push('#33cc33');
+
+                        lines.push(row2);
+
+                        return lines;
+                }
+
+                function giveBear(value){
+                    if(value > 50){
+                        return 100 - value;
+                    }
+                    else{
+                        return value;
+                    }
+                }
+
+                function giveBull(value){
+                    if(value > 50){
+                        return value;
+                    }
+                    else{
+                        return 100-value;
+                    }
+                }
+
+                function checkLow(low1, low2){
+                        var finalLow;
+                        if(low1 > low2){
+                            finalLow = low2;
+                        }
+                        else{
+                            finalLow = low1;
+                        }
+
+                        return finalLow;
+                }
+
+                function checkHigh(high1, high2){
+                        var finalHigh;
+                        if(high1 > high2){
+                            finalHigh = high1;
+                        }
+                        else{
+                            finalHigh = high2;
+                        }
+                        return finalHigh;
+                }
+
+                function CalcBearBull(arrayData){
+                    lastprice = arrayData[0];
+                    low = arrayData[1];
+                    high = arrayData[2];
+
+                    finalValue = 100*((lastprice-low)/(high-low));
+
+                    return finalValue;
+                }
+
+                function drawChart(data){
+                    var y,ticker;
+                    y = document.getElementById("form1");
+                    ticker = y.elements["symbol"].value;
+                var options = {
+                    title: ("Market Trend of " + ticker),
+                    width: 1200,
+                    height: 400,
+                    bar: { groupWidth: "95%" },
+                    vAxis: {
+                        maxValue: 100,
+                        minValue: 0
+                    },
+                    legend: { position: "none" },
+                };
+                    var chart = new google.visualization.ColumnChart(document.getElementById("columnchart_values"));
+                    chart.draw(data, options);
+                }
+
+
+    </script>
+	<body>
+    <div id='columnchart_values'></div>
+    <body>
+        <h7> Powered by AlphaVantage Stock API and Charting by Google Charts
+         </h7>
+    </body>
+  </body>
+     <p> Website by Sidhant Swami </p>
+    </body>
+
+</html>
+</body></html>
